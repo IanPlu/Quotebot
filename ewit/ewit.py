@@ -99,12 +99,14 @@ class EWit(commands.Cog):
         with open(QUOTES_FILE, newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([ body, source, comment ])
+            logger.debug("Wrote row: [ " + " ".join([ body, source, comment ]) + " ]")
 
 
     def __read_row__(self, rownum):
         with open(QUOTES_FILE, newline='') as csvfile:
             reader = csv.reader(csvfile)
             if rownum < len(reader):
+                logger.debug("Got row: [ " + " ".join(reader[rownum]) + " ]")
                 return reader[rownum]
             else:
                 raise Exception("No quote with that number exists")
