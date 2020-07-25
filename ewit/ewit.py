@@ -2,7 +2,6 @@ import csv
 import logging
 import os.path
 import random
-import sys
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import (
     escape
@@ -63,7 +62,20 @@ class EWit(commands.Cog):
 
 
     def get_quote(self, number):
-        return self.__read_row__(number)
+        quote = self.__read_row__(number)
+
+        # Split out the quote for better printing
+        chunks = list(filter(None, quote.split('|')))
+
+        if len(chunks) == 3:
+            return "\"" + chunks[0] + "\" - " + chunks[1] + ", " + chunks[2]
+        elif len(chunks) == 2:
+            return "\"" + chunks[0] + "\" - " + chunks[1]
+        elif len(chunks) == 1:
+            return "\"" + chunks[0] + "\""
+        else:
+            logger.error("Got an empty quote at #" + number)
+            return ""
 
 
     def register_quote(self, text):
@@ -78,40 +90,43 @@ class EWit(commands.Cog):
                 remainder = " ".join(text[2:])
 
                 # Then split it along the comma, if any
-                remainder.split(",")
+                remainder = remainder.split(", ")
 
                 if len(remainder) > 1:
                     quote_source = remainder[0]
-                    quote_comment = remainder[1]
+                    quote_comment = ", ".join(remainder[1:])
                 else:
                     quote_source = remainder[0]
 
             self.__write_row__(quote_body, quote_source, quote_comment)
 
             return "Quote added!"
-        except:
-            logger.error("Failed to register quote", sys.exc_info()[0])
+        except Exception as e:
+            logger.error("Failed to register quote", e)
             return "Couldn't add that quote, sorry. Check your formatting and try again."
 
 
     ### Util methods ###
     def __write_row__(self, body, source, comment):
-        with open(QUOTES_FILE, newline='') as csvfile:
-            writer = csv.writer(csvfile)
+        with open(QUOTES_FILE, "a", newline='') as csvfile:
+            writer = csv.writer(csvfile, delimiter='|')
             writer.writerow([ body, source, comment ])
             logger.debug("Wrote row: [ " + " ".join([ body, source, comment ]) + " ]")
+            return True
 
 
     def __read_row__(self, rownum):
-        with open(QUOTES_FILE, newline='') as csvfile:
-            reader = csv.reader(csvfile)
-            if rownum < len(reader):
-                logger.debug("Got row: [ " + " ".join(reader[rownum]) + " ]")
-                return reader[rownum]
+        with open(QUOTES_FILE, "r", newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter='|')
+            rows = [row for row in csvfile]
+
+            if rownum < len(rows):
+                logger.debug("Got row: [ " + " ".join(rows[rownum]) + " ]")
+                return rows[rownum].rstrip("\r\n")
             else:
                 raise Exception("No quote with that number exists")
 
     def __get_num_rows__(self):
-        with open(QUOTES_FILE, newline='') as csvfile:
-            return len(csv.reader(csvfile))
+        with open(QUOTES_FILE, "r", newline='') as csvfile:
+            return sum(1 for row in csvfile)
 
