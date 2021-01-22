@@ -1,6 +1,10 @@
 {
-  "author": "Ian P",
-  "description": "Record the horrible things folks say for blackmail or later laughs.",
+  "author": [ "Ian P" ],
   "install_msg": "Quotebot is watching, judging... always watching. Judging!",
-  "short": "Record quotes!"
+  "name": "Quotebot",
+  "short": "Record quotes!",
+  "requirements": [],
+  "description": "Record the horrible things folks say for blackmail or later laughs.",
+  "permissions": [],
+  "tags": []
 }

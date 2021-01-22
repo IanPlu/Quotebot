@@ -11,10 +11,10 @@ logger = logging.getLogger("ipl.ewit")
 
 QUOTES_FILE = "quotes.csv"
 
+
 class EWit(commands.Cog):
+
     """Ye Almighty Quotebot, Eternal Witness of Your Sinful Sayings"""
-
-
     def __init__(self):
         super().__init__()
 
@@ -22,7 +22,6 @@ class EWit(commands.Cog):
         if not os.path.isfile(QUOTES_FILE):
             with open(QUOTES_FILE, "w") as new_csv:
                 logger.info("Quotes csv file not found. Creating a new one.")
-
 
     @commands.command()
     async def quote(self, ctx, *args):
@@ -55,11 +54,9 @@ class EWit(commands.Cog):
             else:
                 await ctx.send(self.register_quote(args))
 
-
     ### Subcommands ###
     def get_random_quote(self):
         return self.get_quote(random.randint(0, self.__get_num_rows__() - 1))
-
 
     def get_quote(self, number):
         quote = self.__read_row__(number)
@@ -76,7 +73,6 @@ class EWit(commands.Cog):
         else:
             logger.error("Got an empty quote at #" + number)
             return ""
-
 
     def register_quote(self, text):
         try:
@@ -105,7 +101,6 @@ class EWit(commands.Cog):
             logger.error("Failed to register quote", e)
             return "Couldn't add that quote, sorry. Check your formatting and try again."
 
-
     ### Util methods ###
     def __write_row__(self, body, source, comment):
         with open(QUOTES_FILE, "a", newline='') as csvfile:
@@ -113,7 +108,6 @@ class EWit(commands.Cog):
             writer.writerow([ body, source, comment ])
             logger.debug("Wrote row: [ " + " ".join([ body, source, comment ]) + " ]")
             return True
-
 
     def __read_row__(self, rownum):
         with open(QUOTES_FILE, "r", newline='') as csvfile:
