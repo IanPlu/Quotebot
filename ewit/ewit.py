@@ -19,6 +19,8 @@ class EWit(commands.Cog):
     def __init__(self):
         super().__init__()
 
+        print("[IP] Hello, I am EWit")
+
         # Get the path to the local quote csv file
         base_path = str(data_manager.cog_data_path(self)).replace("\\", "/")
         self.quotes_file = base_path + "/" + QUOTES_FILE_NAME
