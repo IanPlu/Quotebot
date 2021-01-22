@@ -1,6 +1,7 @@
 import csv
 import logging
 import os.path
+from pathlib import Path
 import random
 from redbot.core import commands, Config
 from redbot.core import data_manager
@@ -23,6 +24,8 @@ class EWit(commands.Cog):
         self.quotes_file = base_path + "/" + QUOTES_FILE_NAME
 
         # Set up the quotes csv file if it doesn't already exist
+        logger.info("Path: " + self.quotes_file)
+        Path(self.quotes_file).touch()
         if not os.path.isfile(self.quotes_file):
             with open(self.quotes_file, "w") as new_csv:
                 logger.info("Quotes csv file not found. Creating a new one.")
