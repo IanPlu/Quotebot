@@ -1,5 +1,7 @@
+from redbot.core.data_manager import create_temp_config
 from ewit import EWit
 
+create_temp_config()
 cog = EWit()
 
 # Make sure the test file is empty

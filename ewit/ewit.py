@@ -2,25 +2,29 @@ import csv
 import logging
 import os.path
 import random
-from redbot.core import commands
+from redbot.core import commands, Config
+from redbot.core import data_manager
 from redbot.core.utils.chat_formatting import (
     escape
 )
 
 logger = logging.getLogger("ipl.ewit")
 
-QUOTES_FILE = "quotes.csv"
+QUOTES_FILE_NAME = "quotes.csv"
 
 
 class EWit(commands.Cog):
-
     """Ye Almighty Quotebot, Eternal Witness of Your Sinful Sayings"""
     def __init__(self):
         super().__init__()
 
+        # Get the path to the local quote csv file
+        base_path = str(data_manager.cog_data_path(self)).replace("\\", "/")
+        self.quotes_file = base_path + "/" + QUOTES_FILE_NAME
+
         # Set up the quotes csv file if it doesn't already exist
-        if not os.path.isfile(QUOTES_FILE):
-            with open(QUOTES_FILE, "w") as new_csv:
+        if not os.path.isfile(self.quotes_file):
+            with open(self.quotes_file, "w") as new_csv:
                 logger.info("Quotes csv file not found. Creating a new one.")
 
     @commands.command()
@@ -103,14 +107,14 @@ class EWit(commands.Cog):
 
     ### Util methods ###
     def __write_row__(self, body, source, comment):
-        with open(QUOTES_FILE, "a", newline='') as csvfile:
+        with open(self.quotes_file, "a", newline='') as csvfile:
             writer = csv.writer(csvfile, delimiter='|')
             writer.writerow([ body, source, comment ])
             logger.debug("Wrote row: [ " + " ".join([ body, source, comment ]) + " ]")
             return True
 
     def __read_row__(self, rownum):
-        with open(QUOTES_FILE, "r", newline='') as csvfile:
+        with open(self.quotes_file, "r", newline='') as csvfile:
             reader = csv.reader(csvfile, delimiter='|')
             rows = [row for row in csvfile]
 
@@ -121,6 +125,6 @@ class EWit(commands.Cog):
                 raise Exception("No quote with that number exists")
 
     def __get_num_rows__(self):
-        with open(QUOTES_FILE, "r", newline='') as csvfile:
+        with open(self.quotes_file, "r", newline='') as csvfile:
             return sum(1 for row in csvfile)
 
