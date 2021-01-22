@@ -3,8 +3,7 @@ import logging
 import os.path
 from pathlib import Path
 import random
-from redbot.core import commands, Config
-from redbot.core import data_manager
+from redbot.core import commands, data_manager
 from redbot.core.utils.chat_formatting import (
     escape
 )
@@ -19,18 +18,18 @@ class EWit(commands.Cog):
     def __init__(self):
         super().__init__()
 
-        print("[IP] Hello, I am EWit")
-
         # Get the path to the local quote csv file
         base_path = str(data_manager.cog_data_path(self)).replace("\\", "/")
         self.quotes_file = base_path + "/" + QUOTES_FILE_NAME
 
         # Set up the quotes csv file if it doesn't already exist
-        logger.info("Path: " + self.quotes_file)
         Path(self.quotes_file).touch()
         if not os.path.isfile(self.quotes_file):
             with open(self.quotes_file, "w") as new_csv:
                 logger.info("Quotes csv file not found. Creating a new one.")
+                # Write quote 0 on init, so real quotes start at 1
+                self.register_quote("\"Hi mortals, I'm buddy!\" - Buddy, at the dawn of time")
+        logger.info("EWit Online")
 
     @commands.command()
     async def quote(self, ctx, *args):
@@ -63,10 +62,29 @@ class EWit(commands.Cog):
             else:
                 await ctx.send(self.register_quote(args))
 
+    # TODO
+    # - Pagination?
+    # - Send the file?
+    # - Upload somewhere / put in pastebin?
+    async def list(self, ctx, *args):
+        pass
+
+    # TODO
+    # Get a list of quotes that meet some filter criteria
+    # Topic -- just a search of the body
+    # Author -- all quotes from that author
+    # Range -- all quotes from x --> y
+    async def find(self, ctx, *args):
+        pass
+
     ### Subcommands ###
     def get_random_quote(self):
-        return self.get_quote(random.randint(0, self.__get_num_rows__() - 1))
+        return self.get_quote(random.randint(1, self.__get_num_rows__() - 1))
 
+    # TODO
+    # Return a better message on errors-- catch the exception thrown by __read_row__
+    # Update formatting so it prints nicely
+    # Have it optionally send to a specific channel, so you build a running log of all quotes in THAT channel
     def get_quote(self, number):
         quote = self.__read_row__(number)
 
@@ -83,6 +101,10 @@ class EWit(commands.Cog):
             logger.error("Got an empty quote at #" + number)
             return ""
 
+    # TODO:
+    # Add Will exception-- if the syntax is irreparably weird, just store the whole thing as the body
+    # Better response message-- show the parsed author, return the quote number
+    # TODO: Only skip over text[1] if it's a dash or other delimiter
     def register_quote(self, text):
         try:
             # Expecting format: [ "The entire quote body", "-" "Source,", "any", "extra", "comment" ]
