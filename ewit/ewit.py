@@ -64,17 +64,45 @@ class EWit(commands.Cog):
 
     # TODO
     # - Pagination?
-    # - Send the file?
-    # - Upload somewhere / put in pastebin?
-    async def list(self, ctx, *args):
+    # - Send the file itself?
+    @commands.command()
+    async def list_quotes(self, ctx, *args):
+        """
+        Get a list of some or all quotes.
+
+        To have Buddy slide into your DMs with the full text list, broken up over as many messages as it takes:
+        !list_quotes
+        !list_quotes text
+
+        To have Buddy slide into your DMs with the raw quote CSV file:
+        !list_quotes file
+        !list_quotes csv
+
+        To have Buddy calm down and send only some of the list, give it an upper and lower bound:
+        !list_quotes text 37 370
+        !list_quotes file 69 420
+        (Returns a list of quotes from #37, all the way to #370 (inclusive). Obeys the format as well.)
+        """
         pass
 
     # TODO
     # Get a list of quotes that meet some filter criteria
     # Topic -- just a search of the body
     # Author -- all quotes from that author
-    # Range -- all quotes from x --> y
-    async def find(self, ctx, *args):
+    @commands.command()
+    async def find_quote(self, ctx, *args):
+        """
+        Find a quote based on some filter parameters.
+
+        To find quotes containing a certain word or phrase, use 'about':
+        !find_quote about banana
+        !find quote about "banana bread"
+
+        To find quotes from a certain author, use 'from':
+        !find_quote from Louis
+
+        Buddy will DM you with the results.
+        """
         pass
 
     ### Subcommands ###
