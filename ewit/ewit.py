@@ -3,10 +3,8 @@ import logging
 import os.path
 from pathlib import Path
 import random
+import discord
 from redbot.core import commands, data_manager
-from redbot.core.utils.chat_formatting import (
-    escape
-)
 
 logger = logging.getLogger("ipl.ewit")
 
@@ -15,6 +13,7 @@ QUOTES_FILE_NAME = "quotes.csv"
 
 class EWit(commands.Cog):
     """Ye Almighty Quotebot, Eternal Witness of Your Sinful Sayings"""
+
     def __init__(self):
         super().__init__()
 
@@ -54,11 +53,13 @@ class EWit(commands.Cog):
         # Parse the args
         if len(args) == 0:
             # Give a random quote
-            await ctx.send(self.get_random_quote())
+            raw_quote = self.get_random_quote(ctx)
+            await self.try_send_quote(ctx, raw_quote, "Here's a random quote.")
         else:
             if isinstance(args[0], int) or (isinstance(args[0], str) and args[0].isdigit()):
                 # Give a quote by the id number provided
-                await ctx.send(self.get_quote(int(args[0])))
+                raw_quote = self.get_quote(ctx, int(args[0]))
+                await self.try_send_quote(ctx, raw_quote, "")
             else:
                 await ctx.send(self.register_quote(args))
 
@@ -105,34 +106,18 @@ class EWit(commands.Cog):
         """
         pass
 
-    ### Subcommands ###
-    def get_random_quote(self):
-        return self.get_quote(random.randint(1, self.__get_num_rows__() - 1))
+    # Subcommands
+    def get_random_quote(self, ctx):
+        return self.get_quote(ctx, random.randint(1, self.__get_num_rows__() - 1))
 
     # TODO
-    # Return a better message on errors-- catch the exception thrown by __read_row__
-    # Update formatting so it prints nicely
     # Have it optionally send to a specific channel, so you build a running log of all quotes in THAT channel
-    def get_quote(self, number):
-        quote = self.__read_row__(number)
+    def get_quote(self, ctx, number):
+        try:
+            return self.__read_row__(number)
+        except Exception as e:
+            return "No quote with that number. Try !list_quotes, or !find_quote."
 
-        # Split out the quote for better printing
-        chunks = list(filter(None, quote.split('|')))
-
-        if len(chunks) == 3:
-            return "\"" + chunks[0] + "\" - " + chunks[1] + ", " + chunks[2]
-        elif len(chunks) == 2:
-            return "\"" + chunks[0] + "\" - " + chunks[1]
-        elif len(chunks) == 1:
-            return "\"" + chunks[0] + "\""
-        else:
-            logger.error("Got an empty quote at #" + number)
-            return ""
-
-    # TODO:
-    # Add Will exception-- if the syntax is irreparably weird, just store the whole thing as the body
-    # Better response message-- show the parsed author, return the quote number
-    # TODO: Only skip over text[1] if it's a dash or other delimiter
     def register_quote(self, text):
         try:
             # Expecting format: [ "The entire quote body", "-" "Source,", "any", "extra", "comment" ]
@@ -141,10 +126,14 @@ class EWit(commands.Cog):
             quote_comment = ""
 
             if len(text) > 2:
-                # Join together the source + any of the comment
-                remainder = " ".join(text[2:])
+                # If there's a dash to delimit, strip it out
+                if text[1] == "-":
+                    # Join together the source + any of the comment
+                    remainder = " ".join(text[2:])
+                else:
+                    remainder = text[1:]
 
-                # Then split it along the comma, if any
+                # Then split it along the first comma, if any
                 remainder = remainder.split(", ")
 
                 if len(remainder) > 1:
@@ -155,22 +144,75 @@ class EWit(commands.Cog):
 
             self.__write_row__(quote_body, quote_source, quote_comment)
 
-            return "Quote added!"
+            return f"Quote added! This is now quote number {self.__get_num_rows__() - 1}!"
         except Exception as e:
             logger.error("Failed to register quote", e)
             return "Couldn't add that quote, sorry. Check your formatting and try again."
 
-    ### Util methods ###
+    def try_send_quote(self, ctx, raw_quote, embed_message):
+        quote = self.format_quote(ctx, raw_quote)
+        if isinstance(quote, discord.Embed):
+            return ctx.send(embed_message, embed=quote)
+        else:
+            return ctx.send(quote)
+
+    def can_embed(self, ctx):
+        if not isinstance(ctx.channel, discord.abc.GuildChannel):
+            return True
+        else:
+            return ctx.channel.permissions_for(ctx.me).embed_links
+
+    def format_quote(self, ctx, quote, disable_embed=False):
+        """
+        Try to pretty-print the provided quote.
+        If this has permission to send embeds, will return a fancy discord.Embed object.
+        Otherwise, just returns a formatted string.
+        """
+        # Split out the quote for better printing
+        chunks = list(filter(None, quote.split('|')))
+        msg = None
+        author = None
+        comment = None
+
+        if len(chunks) > 2:
+            comment = chunks[2]
+        if len(chunks) > 1:
+            author = chunks[1]
+        if len(chunks) > 0:
+            msg = chunks[0]
+
+        if msg is None:
+            raise Exception("No quote body provided!")
+
+        if not disable_embed and self.can_embed(ctx):
+            embed = discord.Embed(color=0x556f79)
+            embed.title = f"\"{msg}\""
+
+            if author is not None:
+                if comment is not None:
+                    embed.set_footer(text=f"{author}, {comment}")
+                else:
+                    embed.set_footer(text=f"{author}")
+            return embed
+        else:
+            return_message = f"\"{msg}\""
+            if author is not None:
+                return_message += f" - {author}"
+            if comment is not None:
+                return_message += f", {comment}"
+
+            return return_message
+
+    # Util methods
     def __write_row__(self, body, source, comment):
         with open(self.quotes_file, "a", newline='') as csvfile:
             writer = csv.writer(csvfile, delimiter='|')
-            writer.writerow([ body, source, comment ])
-            logger.debug("Wrote row: [ " + " ".join([ body, source, comment ]) + " ]")
+            writer.writerow([body, source, comment])
+            logger.debug("Wrote row: [ " + " ".join([body, source, comment]) + " ]")
             return True
 
     def __read_row__(self, rownum):
         with open(self.quotes_file, "r", newline='') as csvfile:
-            reader = csv.reader(csvfile, delimiter='|')
             rows = [row for row in csvfile]
 
             if rownum < len(rows):
@@ -182,4 +224,3 @@ class EWit(commands.Cog):
     def __get_num_rows__(self):
         with open(self.quotes_file, "r", newline='') as csvfile:
             return sum(1 for row in csvfile)
-

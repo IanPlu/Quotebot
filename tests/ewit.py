@@ -2,12 +2,18 @@ from redbot.core import data_manager
 from ewit import EWit
 
 
+class DummyContext:
+    pass
+
+
 # Stub out the data manager `cog_data_path` method to just return the local filepath
 def mock_cog_data_path(self):
     return "./"
 
 
 data_manager.cog_data_path = mock_cog_data_path
+ctx = DummyContext()
+
 cog = EWit()
 
 # Make sure the test file is empty
@@ -46,24 +52,29 @@ def test_get_quote_by_number():
     cog.__write_row__(test_body2, test_source2, "")
     cog.__write_row__(test_body3, "", "")
 
-    result = cog.get_quote(0)
-    assert result == test_formatted_quote
+    result = cog.get_quote(ctx, 0)
+    formatted_result = cog.format_quote(ctx, result, True)
+    assert formatted_result == test_formatted_quote
 
-    result = cog.get_quote(1)
-    assert result == test_formatted_quote2
+    result = cog.get_quote(ctx, 1)
+    formatted_result = cog.format_quote(ctx, result, True)
+    assert formatted_result == test_formatted_quote2
 
-    result = cog.get_quote(2)
-    assert result == test_formatted_quote3
+    result = cog.get_quote(ctx, 2)
+    formatted_result = cog.format_quote(ctx, result, True)
+    assert formatted_result == test_formatted_quote3
 
 
 def test_get_random_quote():
-    result = cog.get_random_quote()
-    assert result in [test_formatted_quote, test_formatted_quote2, test_formatted_quote3]
+    result = cog.get_random_quote(ctx)
+    formatted_result = cog.format_quote(ctx, result, True)
+    assert formatted_result in [test_formatted_quote, test_formatted_quote2, test_formatted_quote3]
 
 
 def test_register_quote():
     result = cog.register_quote(test_command_input)
-    assert result == "Quote added!"
+    assert result == "Quote added! This is now quote number 3!"
 
-    result = cog.get_quote(3)
-    assert result == test_formatted_quote
+    result = cog.get_quote(ctx, 3)
+    formatted_result = cog.format_quote(ctx, result, True)
+    assert formatted_result == test_formatted_quote
