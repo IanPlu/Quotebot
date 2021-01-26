@@ -1,8 +1,10 @@
 import csv
 import logging
 import os.path
-from pathlib import Path
 import random
+from datetime import datetime
+from pathlib import Path
+
 import discord
 from redbot.core import commands, data_manager
 
@@ -120,9 +122,10 @@ class EWit(commands.Cog):
 
             await ctx.author.send(msg)
         elif fmt == "file":
-            # TODO: Upload the file for embedding, DM to the caller
-            # if the file is too big, ctx.send an error message
-            quotes_file = discord.File(self.__get_quotes_file__())
+            # DM the actual quotes file to the caller
+            # TODO: if the file is too big, ctx.send an error message (not a dm)
+            filename = f"allquotes-{datetime.now().strftime('-%m-%d-%Y-%H:%M:%S')}.csv"
+            quotes_file = discord.File(self.__get_quotes_file__(), filename)
             await ctx.author.send("Here's all the quotes, in .csv format!", file=quotes_file)
         else:
             await ctx.send("Invalid format specified. Provide either 'text', 'file', or 'csv'.")
@@ -295,5 +298,5 @@ class EWit(commands.Cog):
         return rows
 
     def __get_quotes_file__(self):
-        with open(self.quotes_file, "rb") as csvfile:
-            return csvfile
+        csvfile = open(self.quotes_file, "rb")
+        return csvfile
