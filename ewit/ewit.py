@@ -95,23 +95,20 @@ class EWit(commands.Cog):
             fmt = "text"
         else:
             if len(args) >= 3:
-
-                # Check for range numbers
-                if isinstance(args[1], int) and isinstance(args[2], int):
+                try:
+                    # Check for range numbers
                     min_range = int(args[1])
                     max_range = int(args[2])
-                else:
+                except Exception as e:
                     # Invalid range, throw error
                     await ctx.send("Invalid range specified. Provide numbers like !list_quotes text 37 270")
+                    return
 
             if isinstance(args[0], str):
                 if args[0] == "text":
                     fmt = "text"
                 elif args[0] == "file" or args[0] == "csv":
                     fmt = "file"
-            else:
-                # Invalid first argument, throw error
-                await ctx.send("Invalid format specified. Provide either 'text', 'file', or 'csv'.")
 
         # Get all quotes for the provided range, formatted
         if fmt == "text":
@@ -127,7 +124,8 @@ class EWit(commands.Cog):
             # if the file is too big, ctx.send an error message
             quotes_file = discord.File(self.__get_quotes_file__())
             await ctx.author.send("Here's all the quotes, in .csv format!", file=quotes_file)
-            pass
+        else:
+            await ctx.send("Invalid format specified. Provide either 'text', 'file', or 'csv'.")
 
     # TODO
     # Get a list of quotes that meet some filter criteria
@@ -297,5 +295,5 @@ class EWit(commands.Cog):
         return rows
 
     def __get_quotes_file__(self):
-        with open(self.quotes_file, "rb", newline='') as csvfile:
+        with open(self.quotes_file, "rb") as csvfile:
             return csvfile
