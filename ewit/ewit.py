@@ -11,6 +11,8 @@ from redbot.core import commands, data_manager
 logger = logging.getLogger("ipl.ewit")
 
 QUOTES_FILE_NAME = "quotes.csv"
+DISCORD_MESSAGE_CHAR_LIMIT = 2000
+DISCORD_FILESIZE_LIMIT = 8388120
 
 
 class EWit(commands.Cog):
@@ -65,36 +67,34 @@ class EWit(commands.Cog):
             else:
                 await ctx.send(self.register_quote(args))
 
-    # TODO
-    # - Pagination?
-    # - Send the file itself?
     @commands.command()
     async def list_quotes(self, ctx, *args):
         """
         Get a list of some or all quotes.
 
-        To have Buddy slide into your DMs with the full text list, broken up over as many messages as it takes:
+        To get the entire raw quote file in CSV format:
         !list_quotes
-        !list_quotes text
+        !list_quotes csv
+        !list_quotes file
 
-        To have Buddy calm down and send only some of the list, give it an upper and lower bound:
+        To get the full quote list in text form, as a DM, broken up over as many messages as it takes:
+        !list_quotes text
+        Note that this can take a while, because Discord's character limit for DMs is quite small!
+
+        To get only a portion of the list in text, give it an upper and lower bound:
         !list_quotes text 37 270
         (Returns a list of quotes from #37, all the way to #370)
         Specify only a lower bound to get all quotes after that:
         !list_quotes text 50
         (Returns a list of quotes from #50, all the way to the last quote)
-
-        To have Buddy slide into your DMs with the entire raw quote CSV file (no bounds):
-        !list_quotes file
-        !list_quotes csv
         """
         fmt = None
         min_range = None
         max_range = None
 
         if len(args) == 0:
-            # Just get everything as text
-            fmt = "text"
+            # Just return the whole thing
+            fmt = "csv"
         else:
             if len(args) >= 3:
                 try:
@@ -116,17 +116,43 @@ class EWit(commands.Cog):
         if fmt == "text":
             all_quotes = self.__get_all_numbered_quotes__(min_range, max_range)
 
-            # TODO: Break into chunks, based on max DM size
-            # Then, queue up sending each chunk to the caller
-            msg = "\n".join(all_quotes)
+            # Batch sending the entire list, based on max DM size
+            batches = [[]]
+            curr_batch = 0
+            curr_batch_length = 0
+            for quote in all_quotes:
+                curr_quote = f"{quote}\n"
 
-            await ctx.author.send(msg)
-        elif fmt == "file":
+                # Check the size of the next quote string.
+                quote_size = len(curr_quote)
+                # If the batch length would go too high, go to the next batch.
+                if curr_batch_length + quote_size > DISCORD_MESSAGE_CHAR_LIMIT:
+                    curr_batch += 1
+                    curr_batch_length = 0
+                    batches.append([])
+
+                # Now that we have a batch with room, add the quote to the list
+                batches[curr_batch].append(curr_quote)
+                curr_batch_length += quote_size
+
+            # Now that we have batches, queue up sending each one to the caller.
+            await ctx.send(
+                f"Sending you all quotes... Might take a while, it's going to be {len(batches) + 1} messages!")
+            await ctx.author.send(f"Here's the {len(all_quotes)} quotes you requested!")
+            for batch in batches:
+                msg = "".join(batch)
+                await ctx.author.send(msg)
+        elif fmt == "file" or fmt == "csv":
             # DM the actual quotes file to the caller
-            # TODO: if the file is too big, ctx.send an error message (not a dm)
+            # If the file is too big, don't send anything and return an error.
             filename = f"allquotes-{datetime.now().strftime('-%m-%d-%Y-%H:%M:%S')}.csv"
-            quotes_file = discord.File(self.__get_quotes_file__(), filename)
-            await ctx.author.send("Here's all the quotes, in .csv format!", file=quotes_file)
+            file, filesize = self.__get_quotes_file__()
+            if filesize < DISCORD_FILESIZE_LIMIT:
+                quotes_file = discord.File(file, filename)
+                await ctx.send(f"Sending you the quotes file... Check your DMs!")
+                await ctx.author.send("Here's all the quotes, in .csv format!", file=quotes_file)
+            else:
+                await ctx.send(f"Quotes file is too big to embed... sorry!")
         else:
             await ctx.send("Invalid format specified. Provide either 'text', 'file', or 'csv'.")
 
@@ -299,4 +325,5 @@ class EWit(commands.Cog):
 
     def __get_quotes_file__(self):
         csvfile = open(self.quotes_file, "rb")
-        return csvfile
+        file_size = os.path.getsize(self.quotes_file)
+        return csvfile, file_size
