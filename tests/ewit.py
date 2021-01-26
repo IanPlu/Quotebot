@@ -71,6 +71,30 @@ def test_get_random_quote():
     assert formatted_result in [test_formatted_quote, test_formatted_quote2, test_formatted_quote3]
 
 
+def test_get_all_quotes():
+    results = cog.__get_all_quotes__()
+    assert results[0] == test_formatted_quote
+    assert results[1] == test_formatted_quote2
+    assert results[2] == test_formatted_quote3
+
+
+def test_get_all_numbered_quotes():
+    results = cog.__get_all_numbered_quotes__()
+    assert results[0] == f"0) {test_formatted_quote}"
+    assert results[1] == f"1) {test_formatted_quote2}"
+    assert results[2] == f"2) {test_formatted_quote3}"
+
+    results = cog.__get_all_numbered_quotes__(0, 4)
+    assert len(results) == 3
+
+    results = cog.__get_all_numbered_quotes__(2)
+    assert len(results) == 1
+
+    results = cog.__get_all_numbered_quotes__(1, 2)
+    assert len(results) == 2
+    assert results[0] == f"1) {test_formatted_quote2}"
+
+
 def test_register_quote():
     result = cog.register_quote(test_command_input)
     assert result == "Quote added! This is now quote number 3!"

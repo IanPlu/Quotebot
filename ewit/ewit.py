@@ -75,36 +75,80 @@ class EWit(commands.Cog):
         !list_quotes
         !list_quotes text
 
-        To have Buddy slide into your DMs with the raw quote CSV file:
+        To have Buddy calm down and send only some of the list, give it an upper and lower bound:
+        !list_quotes text 37 270
+        (Returns a list of quotes from #37, all the way to #370)
+        Specify only a lower bound to get all quotes after that:
+        !list_quotes text 50
+        (Returns a list of quotes from #50, all the way to the last quote)
+
+        To have Buddy slide into your DMs with the entire raw quote CSV file (no bounds):
         !list_quotes file
         !list_quotes csv
-
-        To have Buddy calm down and send only some of the list, give it an upper and lower bound:
-        !list_quotes text 37 370
-        !list_quotes file 69 420
-        (Returns a list of quotes from #37, all the way to #370 (inclusive). Obeys the format as well.)
         """
-        pass
+        fmt = None
+        min_range = None
+        max_range = None
+
+        if len(args) == 0:
+            # Just get everything as text
+            fmt = "text"
+        else:
+            if len(args) >= 3:
+
+                # Check for range numbers
+                if isinstance(args[1], int) and isinstance(args[2], int):
+                    min_range = int(args[1])
+                    max_range = int(args[2])
+                else:
+                    # Invalid range, throw error
+                    await ctx.send("Invalid range specified. Provide numbers like !list_quotes text 37 270")
+
+            if isinstance(args[0], str):
+                if args[0] == "text":
+                    fmt = "text"
+                elif args[0] == "file" or args[0] == "csv":
+                    fmt = "file"
+            else:
+                # Invalid first argument, throw error
+                await ctx.send("Invalid format specified. Provide either 'text', 'file', or 'csv'.")
+
+        # Get all quotes for the provided range, formatted
+        if fmt == "text":
+            all_quotes = self.__get_all_numbered_quotes__(min_range, max_range)
+
+            # TODO: Break into chunks, based on max DM size
+            # Then, queue up sending each chunk to the caller
+            msg = "\n".join(all_quotes)
+
+            await ctx.author.send(msg)
+        elif fmt == "file":
+            # TODO: Upload the file for embedding, DM to the caller
+            # if the file is too big, ctx.send an error message
+            quotes_file = discord.File(self.__get_quotes_file__())
+            await ctx.author.send("Here's all the quotes, in .csv format!", file=quotes_file)
+            pass
 
     # TODO
     # Get a list of quotes that meet some filter criteria
     # Topic -- just a search of the body
     # Author -- all quotes from that author
-    @commands.command()
-    async def find_quote(self, ctx, *args):
-        """
-        Find a quote based on some filter parameters.
-
-        To find quotes containing a certain word or phrase, use 'about':
-        !find_quote about banana
-        !find quote about "banana bread"
-
-        To find quotes from a certain author, use 'from':
-        !find_quote from Louis
-
-        Buddy will DM you with the results.
-        """
-        pass
+    # @commands.command()
+    # async def find_quote(self, ctx, *args):
+    #     """
+    #     Find a quote based on some filter parameters.
+    #
+    #     To find quotes containing a certain word or phrase, use 'about':
+    #     !find_quote about banana
+    #     !find quote about "banana bread"
+    #
+    #     To find quotes from a certain author, use 'from':
+    #     !find_quote from Louis
+    #
+    #     Buddy will DM you with the results.
+    #     """
+    #
+    #     await ctx.send("Not yet implemented.")
 
     # Subcommands
     def get_random_quote(self, ctx):
@@ -168,18 +212,7 @@ class EWit(commands.Cog):
         If this has permission to send embeds, will return a fancy discord.Embed object.
         Otherwise, just returns a formatted string.
         """
-        # Split out the quote for better printing
-        chunks = list(filter(None, quote.split('|')))
-        msg = None
-        author = None
-        comment = None
-
-        if len(chunks) > 2:
-            comment = chunks[2]
-        if len(chunks) > 1:
-            author = chunks[1]
-        if len(chunks) > 0:
-            msg = chunks[0]
+        msg, author, comment = self.parse_quote_chunks(quote)
 
         if msg is None:
             raise Exception("No quote body provided!")
@@ -195,13 +228,36 @@ class EWit(commands.Cog):
                     embed.set_footer(text=f"{author}")
             return embed
         else:
-            return_message = f"\"{msg}\""
-            if author is not None:
-                return_message += f" - {author}"
-            if comment is not None:
-                return_message += f", {comment}"
+            return self.format_quote_chunks_as_text(msg, author, comment)
 
-            return return_message
+    def parse_quote_chunks(self, raw_quote):
+        # Split out the quote for better printing
+        chunks = list(filter(None, raw_quote.split('|')))
+        msg = None
+        author = None
+        comment = None
+
+        if len(chunks) > 2:
+            comment = chunks[2]
+        if len(chunks) > 1:
+            author = chunks[1]
+        if len(chunks) > 0:
+            msg = chunks[0]
+
+        return msg, author, comment
+
+    def format_quote_chunks_as_text(self, msg, author, comment, number=None):
+        if number is not None:
+            return_message = f"{number}) \"{msg}\""
+        else:
+            return_message = f"\"{msg}\""
+
+        if author is not None:
+            return_message += f" - {author}"
+        if comment is not None:
+            return_message += f", {comment}"
+
+        return return_message
 
     # Util methods
     def __write_row__(self, body, source, comment):
@@ -213,14 +269,33 @@ class EWit(commands.Cog):
 
     def __read_row__(self, rownum):
         with open(self.quotes_file, "r", newline='') as csvfile:
-            rows = [row for row in csvfile]
+            rows = [row.rstrip("\r\n") for row in csvfile]
 
             if rownum < len(rows):
                 logger.debug("Got row: [ " + " ".join(rows[rownum]) + " ]")
-                return rows[rownum].rstrip("\r\n")
+                return rows[rownum]
             else:
                 raise Exception("No quote with that number exists")
 
     def __get_num_rows__(self):
         with open(self.quotes_file, "r", newline='') as csvfile:
             return sum(1 for row in csvfile)
+
+    def __get_all_quotes__(self, number_quotes=False, min_range=None, max_range=None):
+        with open(self.quotes_file, "r", newline='') as csvfile:
+            min_range = min_range if min_range is not None else 0
+            max_range = max_range if max_range is not None else 99999
+
+            rows = [self.format_quote_chunks_as_text(*self.parse_quote_chunks(row.rstrip("\r\n")),
+                                                     i if number_quotes else None) for i, row in enumerate(csvfile) if
+                    min_range <= i <= max_range]
+
+            return rows
+
+    def __get_all_numbered_quotes__(self, min_range=None, max_range=None):
+        rows = self.__get_all_quotes__(True, min_range, max_range)
+        return rows
+
+    def __get_quotes_file__(self):
+        with open(self.quotes_file, "rb", newline='') as csvfile:
+            return csvfile
