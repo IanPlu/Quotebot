@@ -4,3 +4,6 @@
 
 # pytest
 .pytest_cache/*
+
+# Local testing
+run_baddy.sh

@@ -57,8 +57,8 @@ class EWit(commands.Cog):
         # Parse the args
         if len(args) == 0:
             # Give a random quote
-            raw_quote = self.get_random_quote(ctx)
-            await self.try_send_quote(ctx, raw_quote, "Here's a random quote.")
+            num, raw_quote = self.get_random_quote(ctx)
+            await self.try_send_quote(ctx, raw_quote, f"Here's a random quote. It's number {num}!")
         else:
             if isinstance(args[0], int) or (isinstance(args[0], str) and args[0].isdigit()):
                 # Give a quote by the id number provided
@@ -179,7 +179,8 @@ class EWit(commands.Cog):
 
     # Subcommands
     def get_random_quote(self, ctx):
-        return self.get_quote(ctx, random.randint(1, self.__get_num_rows__() - 1))
+        num = random.randint(1, self.__get_num_rows__() - 1)
+        return num, self.get_quote(ctx, num)
 
     # TODO
     # Have it optionally send to a specific channel, so you build a running log of all quotes in THAT channel
